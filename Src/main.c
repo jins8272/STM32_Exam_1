@@ -51,7 +51,7 @@
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
+enum _ledstates {LEFT_SHIFT, RIGHT_SHFIT} LED_STATES;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -60,6 +60,7 @@ static void MX_GPIO_Init(void);
 void shiftClock(void);
 void LatchClock(void);
 void ByteDataWrite(uint8_t data);
+void ByteDataWrite2(uint8_t data);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
@@ -96,6 +97,23 @@ void ByteDataWrite(uint8_t data)
 	}
 	LatchClock();
 }
+
+void ByteDataWrite2(uint8_t data)
+{
+	for (uint8_t i=0; i<8; i++)
+	{
+		if (data & 0x01)
+		{
+			HAL_GPIO_WritePin(DATAPORT, DATA, GPIO_PIN_SET);
+		} else {
+			HAL_GPIO_WritePin(DATAPORT, DATA, GPIO_PIN_RESET);
+		}
+
+		shiftClock();
+		data = data >> 1;
+	}
+	LatchClock();
+}
 /* USER CODE END 0 */
 
 /**
@@ -115,7 +133,7 @@ int main(void)
 	HAL_Init();
 
 	/* USER CODE BEGIN Init */
-//	enum _ledstates {LEFT_SHIFT, RIGHT_SHFIT} LED_STATES;
+	//	enum _ledstates {LEFT_SHIFT, RIGHT_SHFIT} LED_STATES;
 	/* USER CODE END Init */
 
 	/* Configure the system clock */
@@ -134,42 +152,47 @@ int main(void)
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	uint8_t index = 0;
-	//uint8_t index2 = 1;
-
+	uint8_t index2 = 0;
+	volatile uint8_t ledValue=1;
 	while (1)
 	{
-
-		 uint8_t pattern = 1 << index;
-				 index = (index+1 )% 8;
-				 ByteDataWrite(pattern);
+		if (LED_STATES == LEFT_SHIFT)
+		{
+			ledValue <<= 1;
+			if (ledValue == 0) ledValue = 0x01;
+			LED_STATES = LEFT_SHIFT;
+			uint8_t pattern = 1 << index2;
+			index2 = (index2+1 )% 8;
+			ByteDataWrite2(pattern);
 			HAL_Delay(300);
-		 // }
-		   //PORTF = PORTF >> 1; // 오른쪽으로 1씩 이동하여 PORTF에 대입
-		   //_delay_ms(500); //0.5초간
+			if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_1) == 0)
+			{
+				LED_STATES = RIGHT_SHFIT;
+				uint8_t pattern = 1 << index2;
+				index2 = (index2+1 )% 8;
+				ByteDataWrite2(pattern);
+				HAL_Delay(300);
+			}
+		}
+		else if (LED_STATES == RIGHT_SHFIT)
+		{
+			ledValue >>= 1;
+			if (ledValue == 0) ledValue = 0x80;
+			LED_STATES = RIGHT_SHFIT;
+			uint8_t pattern = 1 << index;
+			index = (index+1 )% 8;
+			ByteDataWrite(pattern);
+			HAL_Delay(300);
+			if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) == 0)
+			{
+				LED_STATES = LEFT_SHIFT;
+				uint8_t pattern = 0 << index;
+				index = (index+1 )% 8;
+				ByteDataWrite(pattern);
+				HAL_Delay(300);
 
-
-
-
-
-		//if	(HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_0)==0)
-		//{uint8_t pattern = 1 << index1;
-		//index1 = (index1+1)%8;
-	//	ByteDataWrite(pattern);
-		//HAL_Delay(300);
-		//}
-		//else if(HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_1) == 0)
-	//	{
-		//	for(int i = 0; ; i++)
-			//{uint8_t pattern = 1 << index2;
-			//index2 = (index2+1 % 8);
-		//	ByteDataWrite(pattern);
-		//	HAL_Delay(300);}
-		//}
-		//  uint8_t pattern = 1 << index;
-		// index = (index+1 % 8);
-		// ByteDataWrite(pattern);
-		//HAL_Delay(100);
-
+			}
+		}
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
